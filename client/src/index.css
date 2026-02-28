@@ -1,0 +1,40 @@
+:root {
+  /* Presidio-style dark palette — slightly softer tone */
+  --color-bg: #26282d;
+  --color-surface: #32353a;
+  --color-text: #e6e6e6;
+  --color-text-muted: #a8a8a8;
+  --color-border: #45484d;
+  --color-accent: #87CEEB;
+  --color-accent-hover: #a8ddf0;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --header-bg: #26282d;
+  --header-text: #e6e6e6;
+  --header-text-muted: #a8a8a8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}

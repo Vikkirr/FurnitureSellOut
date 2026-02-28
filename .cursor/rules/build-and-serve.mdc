@@ -1,0 +1,29 @@
+---
+description: Run build after frontend changes so the user sees updates without manual steps
+alwaysApply: true
+---
+
+# Build After Frontend Changes
+
+When you edit files that affect the built app (client source, client config, or server static delivery), **run the build on the user's behalf** so they see changes immediately.
+
+## When to run
+
+- After changing anything under `client/src/` (React, CSS, assets)
+- After changing `client/index.html`, Vite config, or other client build inputs
+- After changing server code that serves the frontend (e.g. `server/public/`, `server/index.js` static serving)
+
+## Commands to run
+
+1. **Build the client** (required after client-side edits):
+   ```bash
+   cd /Volumes/FurnitureCatalogWeb && npm run build
+   ```
+   Run from the **project root** so the output goes to `server/public/`.
+
+2. **Optional**: If the user runs the app with `npm run dev` or `npm start`, they may need to **restart the server** and **hard-refresh** the browser once. You can remind them after the build.
+
+## Do not
+
+- Skip the build because "the user can run it" — run it yourself so the reply includes "Build completed; restart server and hard-refresh if you don't see changes."
+- Run `npm run build` from inside `client/` unless the project root is unavailable; prefer project root so paths and output are correct.

@@ -7,11 +7,12 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'catalog.db');
+const dbPath = path.resolve(process.env.DATABASE_PATH || path.join(dataDir, 'catalog.db'));
 let db;
 
 function getDb() {
   if (!db) {
+    console.log('Database path:', dbPath);
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
   }

@@ -10,7 +10,8 @@
     "start": "node server/index.js",
     "install:all": "npm install && cd client && npm install",
     "stop": "lsof -ti :3080 | xargs kill 2>/dev/null || true",
-    "restart": "npm run stop && npm start"
+    "restart": "npm run stop && npm start",
+    "db-path": "node -e \"require('dotenv').config();const path=require('path');const p=path.resolve(process.env.DATABASE_PATH||'./data/catalog.db');console.log('DB path (same as app):',p);const db=require('better-sqlite3')(p);const r=db.prepare('SELECT COUNT(*) as c FROM products WHERE status=?').get('sold');console.log('Sold count in this file:',r.c);db.close();\""
   },
   "dependencies": {
     "dotenv": "^16.4.5",

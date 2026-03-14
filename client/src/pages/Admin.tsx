@@ -6,6 +6,7 @@ import AdminLayout from '../components/AdminLayout';
 import AdminPanel from '../components/AdminPanel';
 import AdminProfit from './AdminProfit';
 import AdminVisitors from './AdminVisitors';
+import AdminSettings from './AdminSettings';
 
 export default function Admin() {
   const [auth, setAuth] = useState<boolean | null>(null);
@@ -47,6 +48,8 @@ export default function Admin() {
     content = <AdminProfit />;
   } else if (pathname === '/admin/visitors') {
     content = <AdminVisitors />;
+  } else if (pathname === '/admin/settings') {
+    content = <AdminSettings />;
   } else {
     navigate('/admin/catalog', { replace: true });
     content = <div style={{ padding: 20 }}>Loading...</div>;

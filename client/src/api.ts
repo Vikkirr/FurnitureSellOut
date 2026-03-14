@@ -206,6 +206,52 @@ export async function adminBulkPrice(ids: number[], price: number): Promise<{ up
   return res.json();
 }
 
+export type AdminSettings = {
+  openaiApiKeyMasked?: string;
+  extractionPrompt?: string;
+  stampImagePath?: string;
+};
+
+export async function adminGetSettings(debug?: boolean): Promise<AdminSettings & { _debug?: { dataDir: string | null; settingsPath: string | null; cwd: string } }> {
+  const url = debug ? `${API}/admin/settings?debug=1` : `${API}/admin/settings`;
+  const res = await adminFetch(url);
+  if (!res.ok) throw new Error('Failed to load settings');
+  return res.json();
+}
+
+export async function adminPutSettings(settings: Partial<AdminSettings & { openaiApiKey?: string }>): Promise<AdminSettings> {
+  const res = await adminFetch(`${API}/admin/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = 'Failed to save settings';
+    try {
+      const data = JSON.parse(text);
+      if (data && typeof data.error === 'string') msg = data.error;
+    } catch (_) {
+      if (text) msg = `${res.status}: ${text.slice(0, 200)}`;
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function adminFetchProductFromUrl(url: string): Promise<Partial<Product>> {
+  const res = await adminFetch(`${API}/admin/fetch-product-from-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to fetch product from URL');
+  }
+  return res.json();
+}
+
 export async function adminBulkStatus(ids: number[], status: 'available' | 'pending' | 'sold'): Promise<{ updated: number }> {
   const res = await adminFetch(`${API}/admin/products/bulk-status`, {
     method: 'POST',
@@ -218,6 +264,46 @@ export async function adminBulkStatus(ids: number[], status: 'available' | 'pend
     throw new Error(msg);
   }
   return res.json();
+}
+
+export async function adminSyncToSheet(): Promise<{ ok: boolean; rows?: number; error?: string }> {
+  const res = await adminFetch(`${API}/admin/sync-to-sheet`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
+  return data as { ok: boolean; rows?: number };
+}
+export async function adminSyncFromSheet(): Promise<{ ok: boolean; updated?: number; inserted?: number; error?: string }> {
+  const res = await adminFetch(`${API}/admin/sync-from-sheet`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
+  return data as { ok: boolean; updated?: number; inserted?: number };
+}
+
+export async function adminGetSyncCapabilities(): Promise<{ fromProd: boolean; fromDev: boolean }> {
+  const res = await adminFetch(`${API}/admin/sync/capabilities`);
+  if (!res.ok) return { fromProd: false, fromDev: false };
+  return res.json();
+}
+
+export async function adminSyncDbFromProd(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const res = await adminFetch(`${API}/admin/sync/db-from-prod`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
+  return data as { ok: boolean; message?: string };
+}
+
+export async function adminSyncDbToProd(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const res = await adminFetch(`${API}/admin/sync/db-to-prod`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
+  return data as { ok: boolean; message?: string };
+}
+
+export async function adminSyncDbFromDev(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const res = await adminFetch(`${API}/admin/sync/db-from-dev`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
+  return data as { ok: boolean; message?: string };
 }
 
 export function adminExportUrl(): string {

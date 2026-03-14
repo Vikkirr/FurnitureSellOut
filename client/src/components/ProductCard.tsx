@@ -17,6 +17,9 @@ export default function ProductCard({ product, onClick, isExpanded }: Props) {
           ) : (
             <div className="product-card-placeholder">No image</div>
           )}
+          {product.status === 'pending' && (
+            <span className="product-card-stamp product-card-stamp-pending" aria-hidden>PENDING</span>
+          )}
         </div>
         <div className="product-card-info">
           <span className="product-card-manufacturer product-card-manufacturer-standalone">{product.manufacturer}</span>

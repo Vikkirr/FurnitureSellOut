@@ -8,6 +8,12 @@ import {
   adminBulkStatus,
   adminImport,
   adminRefreshImportToken,
+  adminFetchProductFromUrl,
+  adminSyncToSheet,
+  adminSyncFromSheet,
+  adminGetSyncCapabilities,
+  adminSyncDbFromProd,
+  adminSyncDbToProd,
   type Product,
 } from '../api';
 
@@ -161,8 +167,16 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
   const [editImageVisibility, setEditImageVisibility] = useState<boolean[]>([]);
   const [editPrimaryIndex, setEditPrimaryIndex] = useState(0);
   const [editImageAddUrl, setEditImageAddUrl] = useState('');
+  const [fetchAiLoadingId, setFetchAiLoadingId] = useState<number | null>(null);
+  const [addFormPrefill, setAddFormPrefill] = useState<Partial<Product> | null>(null);
+  const [addFormPrefillKey, setAddFormPrefillKey] = useState(0);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [syncCapabilities, setSyncCapabilities] = useState<{ fromProd: boolean; fromDev: boolean } | null>(null);
+
+  useEffect(() => {
+    adminGetSyncCapabilities().then(setSyncCapabilities).catch(() => setSyncCapabilities({ fromProd: false, fromDev: false }));
+  }, []);
 
   useEffect(() => {
     if (editing) {
@@ -302,6 +316,31 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
       load();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed');
+    }
+  };
+
+  const handleFetchWithAi = async (p: Product) => {
+    const url = (p.pick_url || '').trim();
+    if (!url) {
+      setMessage('Pick URL is empty. Set a link first.');
+      return;
+    }
+    setFetchAiLoadingId(p.id);
+    setMessage('');
+    try {
+      const data = await adminFetchProductFromUrl(url);
+      const merged = { ...p, ...data };
+      setEditing(merged);
+      setShowForm(false);
+      setEditImageUrls(Array.isArray(merged.image_urls) ? merged.image_urls : []);
+      setEditImageVisibility((Array.isArray(merged.image_urls) ? merged.image_urls : []).map(() => true));
+      setEditPrimaryIndex(0);
+      setEditImageAddUrl('');
+      setMessage('Fetched. Review and click Update to save.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Fetch with AI failed');
+    } finally {
+      setFetchAiLoadingId(null);
     }
   };
 
@@ -448,6 +487,34 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
       )}
 
       <section className="admin-section">
+        <h2>Google Sheet sync</h2>
+        <div className="admin-sheet-actions" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button type="button" className="admin-btn-primary" onClick={async () => { setMessage(''); try { const r = await adminSyncToSheet(); if (r.ok && r.rows != null) setMessage(`Pushed ${r.rows} rows to Google Sheet.`); else setMessage(r.error || 'Push failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Push failed'); } }}>
+            Push to Google Sheet
+          </button>
+          <button type="button" className="admin-btn-primary" onClick={async () => { setMessage(''); try { const r = await adminSyncFromSheet(); if (r.ok) { setMessage(`Updated ${r.updated ?? 0}, inserted ${r.inserted ?? 0}.`); load(); } else setMessage(r.error || 'Pull failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Pull failed'); } }}>
+            Pull from Google Sheet
+          </button>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <h2>Data Sync</h2>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button type="button" className="admin-btn-primary" disabled={!syncCapabilities?.fromProd} onClick={async () => { setMessage(''); try { const r = await adminSyncDbFromProd(); if (r.ok) { setMessage(r.message || 'DB synced from Prod.'); load(); } else setMessage(r.error || 'Sync failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Sync failed'); } }}>Sync DB from Prod</button>
+          <button type="button" className="admin-btn-primary" disabled={!syncCapabilities?.fromProd} onClick={async () => { setMessage(''); try { const r = await adminSyncDbToProd(); if (r.ok) { setMessage(r.message || 'DB synced to Prod.'); load(); } else setMessage(r.error || 'Sync failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Sync failed'); } }}>Sync DB to Prod</button>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <h2>Images Sync</h2>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button type="button" className="admin-btn-primary" disabled>Sync Images from Prod</button>
+          <button type="button" className="admin-btn-primary" disabled>Sync Images from Dev</button>
+        </div>
+      </section>
+
+      <section className="admin-section">
         <h2>Bulk Import</h2>
         <p className="admin-section-hint">Download an empty template with the correct columns, fill it in, then import.</p>
         <form onSubmit={handleImport} className="admin-excel-form">
@@ -465,27 +532,50 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
       <section className="admin-section">
         <h2>Products</h2>
         {showForm && (
-          <form className="admin-form" onSubmit={handleAdd}>
+          <form key={`add-${addFormPrefillKey}`} className="admin-form" onSubmit={handleAdd}>
             <h3>New product</h3>
-            <label>Quantity <input name="quantity" type="number" min={1} defaultValue={1} /></label>
-            <label>SKU <input name="sku" /></label>
-            <label>Name * <input name="name" required /></label>
-            <label>Notes <input name="notes" placeholder="Optional notes" /></label>
-            <label>Manufacturer (Brand) * <input name="manufacturer" required /></label>
-            <label>Features (description) <textarea name="description" /></label>
-            <label>Weight <input name="weight" /></label>
-            <label>Dimensions <input name="dimensions" /></label>
-            <label>Color <input name="color" /></label>
-            <label>Department <input name="department" placeholder="e.g. Dining Set, Chairs" /></label>
-            <label>Style (furniture type) <input name="furniture_type" placeholder="e.g. Sofa" /></label>
-            <label>URL (FB Marketplace) <input name="fb_marketplace_url" type="url" /></label>
-            <label>Pick URL <input name="pick_url" type="url" placeholder="https://..." /></label>
-            <label>Cost <input name="cost" type="number" step="0.01" /></label>
-            <label>Retail Price <input name="retail_price" type="number" step="0.01" placeholder="Avg online price" /></label>
-            <label>Price * <input name="price" type="number" step="0.01" required /></label>
-            <label>Guidelines <input name="guidelines" placeholder="Optional guidelines" /></label>
+            <div className="admin-fetch-url-row">
+              <label>Fetch from URL (AI + images): <input type="url" id="add-fetch-url" placeholder="https://..." className="admin-fetch-url-input" /></label>
+              <button
+                type="button"
+                className="admin-btn-primary"
+                onClick={async () => {
+                  const input = document.getElementById('add-fetch-url') as HTMLInputElement | null;
+                  const url = input?.value?.trim();
+                  if (!url) { setMessage('Enter a URL first.'); return; }
+                  setMessage('');
+                  try {
+                    const data = await adminFetchProductFromUrl(url);
+                    setAddFormPrefill(data);
+                    setAddFormPrefillKey((k) => k + 1);
+                    setMessage('Fetched. Review the form below and click Save.');
+                  } catch (err) {
+                    setMessage(err instanceof Error ? err.message : 'Fetch failed');
+                  }
+                }}
+              >
+                Fetch with AI
+              </button>
+            </div>
+            <label>Quantity <input name="quantity" type="number" min={1} defaultValue={addFormPrefill?.quantity ?? 1} /></label>
+            <label>SKU <input name="sku" defaultValue={addFormPrefill?.sku ?? ''} /></label>
+            <label>Name * <input name="name" required defaultValue={addFormPrefill?.name ?? ''} /></label>
+            <label>Notes <input name="notes" placeholder="Optional notes" defaultValue={addFormPrefill?.notes ?? ''} /></label>
+            <label>Manufacturer (Brand) * <input name="manufacturer" required defaultValue={addFormPrefill?.manufacturer ?? ''} /></label>
+            <label>Features (description) <textarea name="description" defaultValue={addFormPrefill?.description ?? ''} /></label>
+            <label>Weight <input name="weight" defaultValue={addFormPrefill?.weight ?? ''} /></label>
+            <label>Dimensions <input name="dimensions" defaultValue={addFormPrefill?.dimensions ?? ''} /></label>
+            <label>Color <input name="color" defaultValue={addFormPrefill?.color ?? ''} /></label>
+            <label>Department <input name="department" placeholder="e.g. Dining Set, Chairs" defaultValue={addFormPrefill?.department ?? ''} /></label>
+            <label>Style (furniture type) <input name="furniture_type" placeholder="e.g. Sofa" defaultValue={addFormPrefill?.furniture_type ?? ''} /></label>
+            <label>URL (FB Marketplace) <input name="fb_marketplace_url" type="url" defaultValue={addFormPrefill?.fb_marketplace_url ?? ''} /></label>
+            <label>Pick URL <input name="pick_url" type="url" placeholder="https://..." defaultValue={addFormPrefill?.pick_url ?? ''} /></label>
+            <label>Cost <input name="cost" type="number" step="0.01" defaultValue={addFormPrefill?.cost ?? ''} /></label>
+            <label>Retail Price <input name="retail_price" type="number" step="0.01" placeholder="Avg online price" defaultValue={addFormPrefill?.retail_price ?? ''} /></label>
+            <label>Price * <input name="price" type="number" step="0.01" required defaultValue={addFormPrefill?.price ?? ''} /></label>
+            <label>Guidelines <input name="guidelines" placeholder="Optional guidelines" defaultValue={addFormPrefill?.guidelines ?? ''} /></label>
             <label>Status <select name="status"><option value="available">Available</option><option value="pending">Pending</option><option value="sold">Sold</option></select></label>
-            <label>Images (comma-separated URLs) <input name="image_urls" placeholder="https://..." /></label>
+            <label>Images (comma-separated URLs) <input name="image_urls" placeholder="https://..." defaultValue={Array.isArray(addFormPrefill?.image_urls) ? addFormPrefill.image_urls.join(', ') : ''} /></label>
             <fieldset className="admin-options-fieldset">
               <legend>Conditions</legend>
               <label className="admin-check-label"><input type="checkbox" name="brand_new" /> Brand New</label>
@@ -581,7 +671,7 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
             <button type="button" onClick={() => handleBulkStatus('sold')} disabled={selectedIds.size === 0}>Mark sold</button>
             <button type="button" onClick={handleBulkDelete} disabled={selectedIds.size === 0}>Delete</button>
           </div>
-          <button type="button" onClick={() => { setShowForm(true); setEditing(null); }} className="admin-btn-primary admin-bulk-add">
+          <button type="button" onClick={() => { setShowForm(true); setEditing(null); setAddFormPrefill(null); setAddFormPrefillKey((k) => k + 1); }} className="admin-btn-primary admin-bulk-add">
             Add product
           </button>
         </div>
@@ -792,6 +882,14 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
                         );
                       })()}
                       <td className="admin-col-actions">
+                        <button
+                          type="button"
+                          onClick={() => handleFetchWithAi(p)}
+                          disabled={!p.pick_url?.trim() || fetchAiLoadingId === p.id}
+                          title={p.pick_url?.trim() ? 'Fetch details and images from URL with AI' : 'Set Pick URL first'}
+                        >
+                          {fetchAiLoadingId === p.id ? 'Fetching…' : 'Fetch with AI'}
+                        </button>
                         <button type="button" onClick={() => { setEditing(p); setShowForm(false); }}>Edit</button>
                         <button type="button" onClick={() => handleDelete(p.id)}>Delete</button>
                       </td>

@@ -5,26 +5,18 @@ const router = express.Router();
 const { getDb } = require('../db');
 const { requireAdmin, requireAdminOrImportToken } = require('../middleware/auth');
 const importTokens = require('../importTokens');
+const settings = require('../settings');
+const { fetchProductFromUrl } = require('../aiProductFetch');
+const productExport = require('../productExport');
+const { pushToSheet, pullFromSheet } = require('../sheetsSync');
+const { syncDbFromProd } = require('../syncDbFromProd');
+const { syncDbToProd } = require('../syncDbToProd');
+const { syncDbFromDev } = require('../syncDbFromDev');
+const OPTION_COLUMNS = productExport.OPTION_COLUMNS;
+const EXCEL_COLUMNS = productExport.EXCEL_COLUMNS;
+const rowToExcelRow = productExport.rowToExcelRow;
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-
-const OPTION_COLUMNS = [
-  { key: 'brand_new', excel: 'Brand New' },
-  { key: 'was_never_used', excel: 'Never Used' },
-  { key: 'was_never_assembled', excel: 'Never Assembled' },
-  { key: 'open_box', excel: 'Open Box' },
-  { key: 'assembly_required', excel: 'Original Packaging' },
-  { key: 'free_local_curbside_delivery', excel: 'Free Local Curbside Delivery' },
-  { key: 'local_curbside_delivery_fee', excel: 'Local Curbside Delivery (Fee)' },
-  { key: 'meetup_public_place', excel: 'Meet Up (Public Place)' },
-  { key: 'pickup', excel: 'Pick Up' },
-];
-
-const EXCEL_COLUMNS = [
-  'Quantity', 'SKU', 'Name', 'Notes', 'Brand', 'Features', 'Weight', 'Dimensions',
-  'Color', 'Department', 'Style', 'URL', 'Pick URL', 'Cost', 'Retail Price', '10% Margin', '5% Margin', '20% loss', 'Price', 'Guidelines', 'Images',
-  ...OPTION_COLUMNS.map(o => o.excel),
-];
 
 function sendTemplateResponse(res) {
   try {
@@ -195,6 +187,58 @@ function handleImport(req, res) {
 router.post('/import', upload.single('file'), handleImport);
 
 router.use(requireAdmin);
+
+router.get('/settings', (req, res) => {
+  try {
+    const data = settings.load();
+    if (req.query.debug === '1') {
+      const p = require('path');
+      const dir = settings.getDataDir?.() ?? null;
+      data._debug = { dataDir: dir, settingsPath: dir ? p.join(dir, 'settings.json') : null, cwd: process.cwd() };
+    }
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load settings' });
+  }
+});
+
+router.put('/settings', (req, res) => {
+  try {
+    const body = req.body || {};
+    const openaiApiKey = body.openaiApiKey;
+    const extractionPrompt = body.extractionPrompt;
+    const stampImagePath = body.stampImagePath;
+    const updates = {};
+    if (extractionPrompt !== undefined && extractionPrompt !== null) updates.extractionPrompt = String(extractionPrompt);
+    if (stampImagePath !== undefined && stampImagePath !== null) updates.stampImagePath = String(stampImagePath || '').trim();
+    if (openaiApiKey !== undefined && openaiApiKey !== null && openaiApiKey !== '' && !String(openaiApiKey).startsWith('sk-…')) {
+      updates.openaiApiKey = String(openaiApiKey).trim();
+    }
+    settings.save(updates);
+    const loaded = settings.load();
+    res.json(loaded);
+  } catch (err) {
+    console.error('PUT /settings error:', err);
+    const pathUsed = err.settingsPath || 'data/settings.json';
+    let message = err.message || 'Failed to save settings';
+    if (err.code === 'EACCES') message = `Permission denied writing to ${pathUsed}. Fix: chmod or chown the data/ folder so the server can write.`;
+    else if (err.code === 'ENOENT') message = `Path invalid: ${pathUsed}. Ensure the server is started from the project root.`;
+    res.status(500).json({ error: message, code: err.code });
+  }
+});
+
+router.post('/fetch-product-from-url', async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    const product = await fetchProductFromUrl(url);
+    res.json(product);
+  } catch (err) {
+    console.error('fetch-product-from-url:', err);
+    const message = err && err.message ? err.message : 'Failed to fetch product from URL';
+    res.status(400).json({ error: message });
+  }
+});
 
 router.get('/import-token', (req, res) => {
   const token = importTokens.add();
@@ -388,45 +432,6 @@ router.post('/products/bulk-status', (req, res) => {
   }
 });
 
-function rowToExcelRow(row) {
-  const cost = row.cost != null ? Number(row.cost) : null;
-  const price = row.price != null ? Number(row.price) : 0;
-  const retailPrice = row.retail_price != null ? Number(row.retail_price) : null;
-  const margin10 = cost != null && cost > 0 ? Math.round((cost / 0.9) * 100) / 100 : '';
-  const margin5 = cost != null && cost > 0 ? Math.round((cost / 0.95) * 100) / 100 : '';
-  const loss20 = cost != null && cost > 0 ? Math.round((cost * 0.8) * 100) / 100 : '';
-  const imageUrls = row.image_urls ? (typeof row.image_urls === 'string' ? row.image_urls : JSON.stringify(row.image_urls || [])) : '[]';
-  let imagesStr = '';
-  try {
-    imagesStr = imageUrls.startsWith('[') ? (JSON.parse(imageUrls || '[]') || []).join(', ') : imageUrls;
-  } catch (_) {
-    imagesStr = imageUrls;
-  }
-  return {
-    'Quantity': row.quantity != null ? row.quantity : 1,
-    'SKU': row.sku ?? '',
-    'Name': row.name ?? '',
-    'Notes': row.notes ?? '',
-    'Brand': row.manufacturer ?? '',
-    'Features': row.description ?? '',
-    'Weight': row.weight ?? '',
-    'Dimensions': row.dimensions ?? '',
-    'Color': row.color ?? '',
-    'Department': row.department ?? '',
-    'Style': row.furniture_type ?? '',
-    'URL': row.fb_marketplace_url ?? '',
-    'Cost': cost ?? '',
-    'Retail Price': retailPrice ?? '',
-    '10% Margin': margin10,
-    '5% Margin': margin5,
-    '20% loss': loss20,
-    'Price': price,
-    'Guidelines': row.guidelines ?? '',
-    'Images': imagesStr,
-    ...Object.fromEntries(OPTION_COLUMNS.map(o => [o.excel, row[o.key] ? 'Yes' : 'No'])),
-  };
-}
-
 router.get('/export', (req, res) => {
   try {
     const XLSX = require('xlsx');
@@ -443,6 +448,61 @@ router.get('/export', (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to export' });
+  }
+});
+
+router.post('/sync-to-sheet', requireAdmin, async (req, res) => {
+  try {
+    const result = await pushToSheet();
+    res.json({ ok: true, rows: result.rows });
+  } catch (err) {
+    console.error('sync-to-sheet:', err);
+    res.status(400).json({ error: err.message || 'Failed to push to Google Sheet' });
+  }
+});
+router.post('/sync-from-sheet', requireAdmin, async (req, res) => {
+  try {
+    const result = await pullFromSheet();
+    res.json({ ok: true, updated: result.updated, inserted: result.inserted });
+  } catch (err) {
+    console.error('sync-from-sheet:', err);
+    res.status(400).json({ error: err.message || 'Failed to pull from Google Sheet' });
+  }
+});
+
+router.get('/sync/capabilities', requireAdmin, (req, res) => {
+  const fromProd = !!(process.env.SYNC_PROD_SSH_KEY_PATH && process.env.SYNC_PROD_SSH_KEY_PATH.trim());
+  const fromDev = !!(process.env.SYNC_DEV_SSH_KEY_PATH && process.env.SYNC_DEV_SSH_KEY_PATH.trim());
+  res.json({ fromProd, fromDev });
+});
+
+router.post('/sync/db-from-prod', requireAdmin, (req, res) => {
+  try {
+    const result = syncDbFromProd();
+    res.json(result);
+  } catch (err) {
+    console.error('sync/db-from-prod:', err);
+    res.status(400).json({ error: err.message || 'Failed to sync DB from Prod' });
+  }
+});
+
+router.post('/sync/db-to-prod', requireAdmin, (req, res) => {
+  try {
+    const result = syncDbToProd();
+    res.json(result);
+  } catch (err) {
+    console.error('sync/db-to-prod:', err);
+    res.status(400).json({ error: err.message || 'Failed to sync DB to Prod' });
+  }
+});
+
+router.post('/sync/db-from-dev', requireAdmin, (req, res) => {
+  try {
+    const result = syncDbFromDev();
+    res.json(result);
+  } catch (err) {
+    console.error('sync/db-from-dev:', err);
+    res.status(400).json({ error: err.message || 'Failed to sync DB from Dev' });
   }
 });
 

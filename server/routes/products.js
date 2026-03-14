@@ -25,9 +25,14 @@ router.get('/', (req, res) => {
     const { types, manufacturers, status, priceRangeCount, department } = req.query;
     let sql = 'SELECT * FROM products WHERE 1=1';
     const params = [];
+    // Customer catalog: show both available and pending (pending items show with PENDING stamp)
     const publicStatus = status || 'available';
-    sql += ' AND status = ?';
-    params.push(publicStatus);
+    if (publicStatus === 'available') {
+      sql += " AND status IN ('available', 'pending')";
+    } else {
+      sql += ' AND status = ?';
+      params.push(publicStatus);
+    }
     if (department && typeof department === 'string' && department.trim()) {
       sql += " AND TRIM(COALESCE(department, '')) != '' AND LOWER(TRIM(department)) = LOWER(?)";
       params.push(department.trim());
@@ -88,8 +93,15 @@ router.get('/', (req, res) => {
 function buildFilterWhere(query) {
   const q = query || {};
   const { types, manufacturers, status, priceRangeCount, department } = q;
-  let sql = ' AND status = ?';
-  const params = [status || 'available'];
+  const catalogStatus = status || 'available';
+  let sql;
+  const params = [];
+  if (catalogStatus === 'available') {
+    sql = " AND status IN ('available', 'pending')";
+  } else {
+    sql = ' AND status = ?';
+    params.push(catalogStatus);
+  }
   if (department && typeof department === 'string' && department.trim()) {
     sql += " AND TRIM(COALESCE(department, '')) != '' AND LOWER(TRIM(department)) = LOWER(?)";
     params.push(department.trim());

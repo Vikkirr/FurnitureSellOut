@@ -18,6 +18,9 @@ export default function ProductDetail({ product, onClose }: Props) {
           <ImageGallery images={product.image_urls || []} name={product.name} />
         </div>
         <div className="product-detail-specs">
+          {product.status === 'pending' && (
+            <span className="product-detail-badge product-detail-badge-pending">PENDING</span>
+          )}
           <h2 className="product-detail-name">{product.name}</h2>
           <p className="product-detail-manufacturer">Manufacturer: {product.manufacturer}</p>
           {product.sku && <p className="product-detail-sku">SKU: {product.sku}</p>}

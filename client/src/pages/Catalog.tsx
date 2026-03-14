@@ -21,7 +21,7 @@ export default function Catalog() {
 
   useEffect(() => {
     const dep = searchParams.get('department') || undefined;
-    const effectiveFilters: Filters = { ...filters, department: dep, status: 'available' };
+    const effectiveFilters: Filters = { ...filters, department: dep };
     getFilterCounts(effectiveFilters).then(setFilterCounts).catch(console.error);
   }, [filters, searchParams.toString()]);
 
@@ -34,10 +34,10 @@ export default function Catalog() {
     let cancelled = false;
     setLoading(true);
     const dep = searchParams.get('department') || undefined;
+    // Omit status so server returns both available and pending (pending items show with PENDING stamp)
     const effectiveFilters: Filters = {
       ...filters,
       department: dep,
-      status: 'available',
     };
     getProducts(effectiveFilters)
       .then((data) => {

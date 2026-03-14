@@ -19,6 +19,13 @@ function getDb() {
   return db;
 }
 
+function closeDb() {
+  if (db) {
+    try { db.close(); } catch (_) {}
+    db = null;
+  }
+}
+
 function initDb() {
   const database = getDb();
   database.exec(`
@@ -112,4 +119,4 @@ function initDb() {
   return database;
 }
 
-module.exports = { getDb, initDb };
+module.exports = { getDb, closeDb, initDb, dbPath, dataDir };

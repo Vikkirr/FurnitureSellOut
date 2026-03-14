@@ -560,9 +560,28 @@
 
 /* 1020×900 and 900×900 aspect: wider than square */
 .product-card-image {
+  position: relative;
   aspect-ratio: 1020 / 900;
   background: var(--color-bg);
   overflow: hidden;
+}
+
+.product-card-stamp {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.product-card-stamp-pending {
+  background: #c99000;
+  color: #1a1a1a;
 }
 
 .product-card-image img {
@@ -671,6 +690,21 @@
 .product-detail-name {
   margin: 0 0 0.5rem;
   font-size: 1.25rem;
+}
+
+.product-detail-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.product-detail-badge-pending {
+  background: var(--color-warning, #e6a800);
+  color: #1a1a1a;
 }
 
 .product-detail-manufacturer,
@@ -1396,6 +1430,84 @@
   border-radius: 8px;
   margin-bottom: 1rem;
   max-width: 560px;
+}
+
+.admin-fetch-url-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-fetch-url-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.admin-fetch-url-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.admin-settings-form .admin-section {
+  margin-bottom: 1.5rem;
+}
+
+.admin-input-wide,
+.admin-textarea {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.admin-textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.admin-field-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-prompt-details {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.admin-prompt-details summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.admin-prompt-code {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.35rem;
+  font-size: 0.7rem;
+  background: var(--color-bg);
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .admin-form-two-col {

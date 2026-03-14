@@ -21,7 +21,9 @@ When you edit files that affect the built app (client source, client config, or 
    ```
    Run from the **project root** so the output goes to `server/public/`.
 
-2. **Optional**: If the user runs the app with `npm run dev` or `npm start`, they may need to **restart the server** and **hard-refresh** the browser once. You can remind them after the build.
+2. **Restart the server** (run on the user's behalf when they've asked for it): `npm run restart` from project root.
+
+3. **Remind**: If the user runs the app with `npm run dev` or `npm start`, they may need to **restart the server** and **hard-refresh** the browser (Ctrl+Shift+R / Cmd+Shift+R) after the build.
 
 ## Do not
 

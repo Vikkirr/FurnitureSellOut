@@ -11,18 +11,24 @@
     "install:all": "npm install && cd client && npm install",
     "stop": "lsof -ti :3080 | xargs kill 2>/dev/null || true",
     "restart": "npm run stop && npm start",
-    "db-path": "node -e \"require('dotenv').config();const path=require('path');const p=path.resolve(process.env.DATABASE_PATH||'./data/catalog.db');console.log('DB path (same as app):',p);const db=require('better-sqlite3')(p);const r=db.prepare('SELECT COUNT(*) as c FROM products WHERE status=?').get('sold');console.log('Sold count in this file:',r.c);db.close();\""
+    "db-path": "node -e \"require('dotenv').config();const {dbPath,getDb}=require('./server/db');const db=getDb();const r=db.prepare('SELECT COUNT(*) as c FROM products WHERE status=?').get('sold');db.close();console.log('DB path (exact path app uses):',dbPath);console.log('Sold count in this file:',r.c);\"",
+    "db-path-file": "node -e \"require('dotenv').config();const {dbPath}=require('./server/db');require('fs').writeFileSync('.db-path.txt',dbPath);console.log('Wrote path to .db-path.txt');console.log(dbPath);\"",
+    "db-verify": "npm run db-path-file 2>/dev/null; echo 'Sold count (from file on disk via sqlite3):'; sqlite3 $(cat .db-path.txt 2>/dev/null) \"SELECT COUNT(*) FROM products WHERE status='sold';\" 2>/dev/null || echo 'Install sqlite3 or run: sqlite3 <path> \"SELECT COUNT(*) FROM products WHERE status='\\''sold'\\'';\"'"
   },
-  "dependencies": {
-    "dotenv": "^16.4.5",
+"dependencies": {
+  "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.6.0",
-    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "express-session": "^1.18.0",
-    "session-file-store": "^1.2.0",
+    "googleapis": "^171.4.0",
     "multer": "^1.4.5-lts.1",
+    "openai": "^4.77.0",
+    "session-file-store": "^1.2.0",
+    "sharp": "^0.33.5",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

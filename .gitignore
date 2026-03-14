@@ -9,3 +9,10 @@ server/uploads/*
 !server/uploads/.gitkeep
 .DS_Store
 ._*
+.db-path.txt
+furniture_sync_prod
+furniture_sync_prod_automation
+furniture_sync_prod_automation.pub
+# Google Cloud / service account credentials
+*-*-*.json
+theta-outrider-338523-5edebb7b751d.json

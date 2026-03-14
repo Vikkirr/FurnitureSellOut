@@ -10,6 +10,7 @@ const productsRouter = require('./routes/products');
 const adminRouter = require('./routes/admin');
 const { sendTemplateResponse, importUpload, handleImport } = adminRouter;
 const { initDb } = require('./db');
+const settings = require('./settings');
 
 const PORT = process.env.PORT || 3080;
 const app = express();
@@ -44,6 +45,11 @@ if (process.env.NODE_ENV === 'production') {
 app.use(session(sessionConfig));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, port: PORT }));
+
+app.get('/api/seller-profile-url', (req, res) => {
+  const url = settings.getSellerProfileUrl && settings.getSellerProfileUrl();
+  res.json({ sellerProfileUrl: url || null });
+});
 
 // Public template download (no /admin in path so proxies don't require sign-in)
 app.get('/api/export-template', (req, res) => sendTemplateResponse(res));

@@ -10,6 +10,7 @@ export default function AdminSettings() {
     openaiApiKey: '',
     extractionPrompt: '',
     stampImagePath: '',
+    sellerProfileUrl: '',
   });
 
   const [debugInfo, setDebugInfo] = useState<{ dataDir: string | null; settingsPath: string | null; cwd: string } | null>(null);
@@ -22,6 +23,7 @@ export default function AdminSettings() {
           openaiApiKey: '',
           extractionPrompt: data.extractionPrompt ?? '',
           stampImagePath: data.stampImagePath ?? '',
+          sellerProfileUrl: data.sellerProfileUrl ?? '',
         });
         if (data._debug) setDebugInfo(data._debug);
       })
@@ -37,6 +39,7 @@ export default function AdminSettings() {
       const payload: Record<string, string> = {
         extractionPrompt: form.extractionPrompt ?? '',
         stampImagePath: form.stampImagePath ?? '',
+        sellerProfileUrl: form.sellerProfileUrl ?? '',
       };
       if (form.openaiApiKey != null && form.openaiApiKey !== '') payload.openaiApiKey = form.openaiApiKey;
       await adminPutSettings(payload);
@@ -124,6 +127,19 @@ export default function AdminSettings() {
             />
           </label>
           <p className="admin-field-hint">If empty or file missing, a text “BRAND NEW” badge is used when stamping product images.</p>
+        </section>
+        <section className="admin-section">
+          <h2>Seller&apos;s profile URL</h2>
+          <label>
+            <input
+              type="url"
+              placeholder="https://www.facebook.com/marketplace/profile/..."
+              value={form.sellerProfileUrl}
+              onChange={(e) => setForm((prev) => ({ ...prev, sellerProfileUrl: e.target.value }))}
+              className="admin-input-wide"
+            />
+          </label>
+          <p className="admin-field-hint">Your Facebook Marketplace seller profile URL. Shown in the catalog &quot;Copy item and view on Facebook Marketplace&quot; flow so buyers know where to paste the SKU.</p>
         </section>
         <div className="admin-form-actions">
           <button type="submit" disabled={saving} className="admin-btn-primary">

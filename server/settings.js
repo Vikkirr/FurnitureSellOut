@@ -113,6 +113,15 @@ function getStampPath() {
   return null;
 }
 
+function getSellerProfileUrl() {
+  const s = load();
+  if (s.sellerProfileUrl && typeof s.sellerProfileUrl === 'string') {
+    const url = s.sellerProfileUrl.trim();
+    if (url) return url;
+  }
+  return null;
+}
+
 function getDataDirPublic() {
   ensureDataDir();
   return dataDir;
@@ -124,6 +133,7 @@ module.exports = {
   getOpenAIApiKey,
   getPrompt,
   getStampPath,
+  getSellerProfileUrl,
   getDataDir: getDataDirPublic,
   DEFAULT_PROMPT,
 };

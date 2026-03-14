@@ -74,6 +74,14 @@ export async function getProduct(id: string): Promise<Product> {
   return res.json();
 }
 
+export async function getSellerProfileUrl(): Promise<string | null> {
+  const res = await fetch(`${API}/seller-profile-url`, { cache: 'no-store' });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => ({}));
+  const url = data?.sellerProfileUrl;
+  return typeof url === 'string' && url.trim() ? url.trim() : null;
+}
+
 export type FilterMeta = {
   furnitureTypes: string[];
   manufacturers: string[];
@@ -210,6 +218,7 @@ export type AdminSettings = {
   openaiApiKeyMasked?: string;
   extractionPrompt?: string;
   stampImagePath?: string;
+  sellerProfileUrl?: string;
 };
 
 export async function adminGetSettings(debug?: boolean): Promise<AdminSettings & { _debug?: { dataDir: string | null; settingsPath: string | null; cwd: string } }> {

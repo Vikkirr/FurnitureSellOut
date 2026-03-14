@@ -209,9 +209,11 @@ router.put('/settings', (req, res) => {
     const openaiApiKey = body.openaiApiKey;
     const extractionPrompt = body.extractionPrompt;
     const stampImagePath = body.stampImagePath;
+    const sellerProfileUrl = body.sellerProfileUrl;
     const updates = {};
     if (extractionPrompt !== undefined && extractionPrompt !== null) updates.extractionPrompt = String(extractionPrompt);
     if (stampImagePath !== undefined && stampImagePath !== null) updates.stampImagePath = String(stampImagePath || '').trim();
+    if (sellerProfileUrl !== undefined && sellerProfileUrl !== null) updates.sellerProfileUrl = String(sellerProfileUrl || '').trim();
     if (openaiApiKey !== undefined && openaiApiKey !== null && openaiApiKey !== '' && !String(openaiApiKey).startsWith('sk-…')) {
       updates.openaiApiKey = String(openaiApiKey).trim();
     }

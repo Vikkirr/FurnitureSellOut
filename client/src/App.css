@@ -1361,6 +1361,35 @@
   margin-bottom: 2rem;
 }
 
+/* Three-column sync row: Google Sheet | Data Sync | Images — full width from menu to end */
+.admin-sync-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.admin-sync-row .admin-sync-col {
+  margin-bottom: 0;
+  min-width: 0;
+  padding: 1rem;
+  background: var(--color-surface, #f5f5f5);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+}
+
+.admin-sync-row .admin-sync-col h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+  .admin-sync-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-section h2 {
   margin: 0 0 1rem;
   font-size: 1.125rem;

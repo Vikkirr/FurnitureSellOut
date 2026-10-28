@@ -489,17 +489,19 @@ export default function AdminPanel({ onUnauthorized }: AdminPanelProps) {
       <div className="admin-sync-row">
         <section className="admin-section admin-sync-col">
           <h2>Google Sheet sync</h2>
+          <p className="admin-field-hint">Pull replaces the local product list with the sheet: products missing from the sheet are deleted. Empty or invalid sheets are rejected. Notes stay in the spreadsheet only and are not imported into the database.</p>
           <div className="admin-sheet-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button type="button" className="admin-btn-primary" onClick={async () => { setMessage(''); try { const r = await adminSyncToSheet(); if (r.ok && r.rows != null) setMessage(`Pushed ${r.rows} rows to Google Sheet.`); else setMessage(r.error || 'Push failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Push failed'); } }}>
               Push to Google Sheet
             </button>
-            <button type="button" className="admin-btn-primary" onClick={async () => { setMessage(''); try { const r = await adminSyncFromSheet(); if (r.ok) { setMessage(`Updated ${r.updated ?? 0}, inserted ${r.inserted ?? 0}.`); load(); } else setMessage(r.error || 'Pull failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Pull failed'); } }}>
+            <button type="button" className="admin-btn-primary" onClick={async () => { setMessage(''); try { const r = await adminSyncFromSheet(); if (r.ok) { setMessage(`Updated ${r.updated ?? 0}, inserted ${r.inserted ?? 0}, deleted ${r.deleted ?? 0}.`); load(); } else setMessage(r.error || 'Pull failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Pull failed'); } }}>
               Pull from Google Sheet
             </button>
           </div>
         </section>
         <section className="admin-section admin-sync-col">
           <h2>Data Sync</h2>
+          <p className="admin-field-hint">Notes are not copied. Sync to Prod clears Notes so they never appear in the public product feed.</p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button type="button" className="admin-btn-primary" disabled={!syncCapabilities?.fromProd} onClick={async () => { setMessage(''); try { const r = await adminSyncDbFromProd(); if (r.ok) { setMessage(r.message || 'DB synced from Prod.'); load(); } else setMessage(r.error || 'Sync failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Sync failed'); } }}>Sync DB from Prod</button>
             <button type="button" className="admin-btn-primary" disabled={!syncCapabilities?.fromProd} onClick={async () => { setMessage(''); try { const r = await adminSyncDbToProd(); if (r.ok) { setMessage(r.message || 'DB synced to Prod.'); load(); } else setMessage(r.error || 'Sync failed'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Sync failed'); } }}>Sync DB to Prod</button>

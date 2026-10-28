@@ -149,8 +149,7 @@ function handleImport(req, res) {
       const existingByName = getExistingByName.get(name);
       const departmentStr = department != null && department !== '' ? String(department).trim() : null;
       const pickUrlStr = pickUrl != null && pickUrl !== '' ? String(pickUrl).trim() : null;
-      const notesVal = getCell(r, 'Notes', 'notes');
-      const notesStr = notesVal != null && notesVal !== '' ? String(notesVal).trim() : null;
+      const notesStr = null;
       const guidelinesVal = getCell(r, 'Guidelines', 'guidelines');
       const guidelinesStr = guidelinesVal != null && guidelinesVal !== '' ? String(guidelinesVal).trim() : null;
 
@@ -465,7 +464,7 @@ router.post('/sync-to-sheet', requireAdmin, async (req, res) => {
 router.post('/sync-from-sheet', requireAdmin, async (req, res) => {
   try {
     const result = await pullFromSheet();
-    res.json({ ok: true, updated: result.updated, inserted: result.inserted });
+    res.json({ ok: true, updated: result.updated, inserted: result.inserted, deleted: result.deleted });
   } catch (err) {
     console.error('sync-from-sheet:', err);
     res.status(400).json({ error: err.message || 'Failed to pull from Google Sheet' });

@@ -5,8 +5,10 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { closeDb, getDb, dataDir } = require('./db');
 const { getKeyPath, getProdHost, getProdUser, getProdDataPath } = require('./syncDbFromProd');
+const { stripProductNotesInDir, copyCatalogFiles } = require('./notesPreserve');
 
 const SYNC_PROD_SERVICE_NAME = (process.env.SYNC_PROD_SERVICE_NAME || 'furnitureapp').trim();
 
@@ -26,7 +28,7 @@ function runSsh(cmd) {
 }
 
 /**
- * Push local catalog.db* to Prod. Optionally stops Prod app, rsyncs, then starts Prod app.
+ * Push local catalog.db* to Prod. Stops Prod app, rsyncs a copy with Notes cleared, then starts Prod app.
  */
 function syncDbToProd() {
   const keyPath = getKeyPath();
@@ -41,14 +43,8 @@ function syncDbToProd() {
 
   closeDb();
 
-  const names = ['catalog.db', 'catalog.db-wal', 'catalog.db-shm'];
-  const localFiles = names.filter((n) => fs.existsSync(path.join(localDir, n))).map((n) => path.join(localDir, n));
-  if (localFiles.length === 0) throw new Error('No catalog.db files found in ' + localDir);
-
-  const remote = `${user}@${host}:${remotePath}/`;
   const sshOpts = `-i "${keyPath}" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15`;
-  const list = localFiles.map((f) => `"${f}"`).join(' ');
-  const rsyncCmd = `rsync -avz --progress --checksum -e "ssh ${sshOpts}" ${list} "${remote}"`;
+  const stageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'furniture-prod-stage-'));
 
   try {
     runSsh(`systemctl stop ${SYNC_PROD_SERVICE_NAME}`);
@@ -57,12 +53,22 @@ function syncDbToProd() {
   }
 
   try {
-    runSsh(`rm -f ${remotePath}/catalog.db ${remotePath}/catalog.db-wal ${remotePath}/catalog.db-shm`);
-  } catch (e) {
-    console.warn('sync/db-to-prod: could not remove old remote DB files:', e.message);
-  }
+    copyCatalogFiles(localDir, stageDir);
+    stripProductNotesInDir(stageDir);
 
-  try {
+    const names = ['catalog.db', 'catalog.db-wal', 'catalog.db-shm'];
+    const stageFiles = names.filter((n) => fs.existsSync(path.join(stageDir, n))).map((n) => path.join(stageDir, n));
+    if (stageFiles.length === 0) throw new Error('No catalog.db files found in staging dir');
+    const remote = `${user}@${host}:${remotePath}/`;
+    const list = stageFiles.map((f) => `"${f}"`).join(' ');
+    const rsyncCmd = `rsync -avz --progress --checksum -e "ssh ${sshOpts}" ${list} "${remote}"`;
+
+    try {
+      runSsh(`rm -f ${remotePath}/catalog.db ${remotePath}/catalog.db-wal ${remotePath}/catalog.db-shm`);
+    } catch (e) {
+      console.warn('sync/db-to-prod: could not remove old remote DB files:', e.message);
+    }
+
     execSync(rsyncCmd, {
       stdio: ['ignore', 'pipe', 'pipe'],
       encoding: 'utf8',
@@ -74,10 +80,11 @@ function syncDbToProd() {
     } catch (e) {
       console.warn('sync/db-to-prod: could not start Prod app:', e.message);
     }
+    fs.rmSync(stageDir, { recursive: true, force: true });
     getDb();
   }
 
-  return { ok: true, message: 'DB synced to Prod. Prod app was stopped during sync and restarted.' };
+  return { ok: true, message: 'DB synced to Prod. Notes were not copied. Prod app was stopped during sync and restarted.' };
 }
 
 module.exports = { syncDbToProd };

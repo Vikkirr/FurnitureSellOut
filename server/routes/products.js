@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
 
+/** Public catalog JSON: omit internal fields. pick_url and cost stay in the DB and admin. */
+function toPublicProduct(row) {
+  const { image_visibility, primary_image_index, notes, pick_url, cost, ...rest } = row;
+  return { ...rest, image_urls: catalogImageUrls(row) };
+}
+
 /** For catalog: filter by visibility and put primary image first. */
 function catalogImageUrls(row) {
   const urls = Array.isArray(row.image_urls) ? row.image_urls : JSON.parse(row.image_urls || '[]');
@@ -78,10 +84,7 @@ router.get('/', (req, res) => {
     }
     sql += ' ORDER BY created_at DESC';
     const rows = db.prepare(sql).all(...params);
-    const products = rows.map(row => {
-      const { image_visibility, primary_image_index, ...rest } = row;
-      return { ...rest, image_urls: catalogImageUrls(row) };
-    });
+    const products = rows.map(toPublicProduct);
     res.json(products);
   } catch (err) {
     console.error(err);
@@ -235,8 +238,7 @@ router.get('/:id', (req, res) => {
     const db = getDb();
     const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Product not found' });
-    const { image_visibility, primary_image_index, ...rest } = row;
-    res.json({ ...rest, image_urls: catalogImageUrls(row) });
+    res.json(toPublicProduct(row));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch product' });

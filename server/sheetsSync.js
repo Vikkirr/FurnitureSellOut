@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { getDb } = require('./db');
-const { rowToExcelRow, excelRowToDbRow, EXCEL_COLUMNS, OPTION_COLUMNS } = require('./productExport');
+const { reconcileSheetProducts } = require('./reconcileSheetProducts');
+const { rowToExcelRow, EXCEL_COLUMNS, sheetNotesByProductId } = require('./productExport');
 
 function getSheetId() {
   const id = process.env.GOOGLE_SHEET_ID;
@@ -47,10 +48,19 @@ async function pushToSheet() {
   const sheetId = getSheetId();
   const sheets = await getSheetsClient();
   const sheetName = await getSheetTabName(sheets, sheetId);
+  const existing = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: a1Range(sheetName, 'A:ZZ'),
+  }).catch(() => ({ data: { values: [] } }));
+  const notesById = sheetNotesByProductId(existing.data.values || []);
   const db = getDb();
   const rows = db.prepare('SELECT * FROM products ORDER BY id').all();
   const header = ['ID', ...EXCEL_COLUMNS];
-  const data = rows.map((row) => [row.id, ...EXCEL_COLUMNS.map((col) => rowToExcelRow(row)[col] ?? '')]);
+  const data = rows.map((row) => {
+    const excel = rowToExcelRow(row);
+    excel.Notes = notesById.has(row.id) ? notesById.get(row.id) : '';
+    return [row.id, ...EXCEL_COLUMNS.map((col) => excel[col] ?? '')];
+  });
   const rangeFull = a1Range(sheetName, 'A:ZZ');
   const rangeA1 = a1Range(sheetName, 'A1');
   await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range: rangeFull }).catch(() => {});
@@ -72,55 +82,7 @@ async function pullFromSheet() {
     spreadsheetId: sheetId,
     range: a1Range(sheetName, 'A:ZZ'),
   });
-  const raw = res.data.values || [];
-  if (raw.length < 2) return { updated: 0, inserted: 0 };
-  const headers = raw[0].map((h) => (h != null ? String(h).trim() : ''));
-  const idIdx = headers.findIndex((h) => h === 'ID' || h === 'Id');
-  const optionKeys = OPTION_COLUMNS.map((o) => o.key);
-  let updated = 0;
-  let inserted = 0;
-  const insertStmt = db.prepare(
-    'INSERT INTO products (name, manufacturer, sku, description, dimensions, weight, color, department, price, fb_marketplace_url, pick_url, image_urls, furniture_type, status, quantity, cost, retail_price, notes, guidelines, ' +
-    optionKeys.join(', ') +
-    ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ' +
-    optionKeys.map(() => '?').join(', ') +
-    ')'
-  );
-  const updateStmt = db.prepare(
-    'UPDATE products SET name=?, manufacturer=?, sku=?, description=?, dimensions=?, weight=?, color=?, department=?, price=?, fb_marketplace_url=?, pick_url=?, image_urls=?, furniture_type=?, status=?, quantity=?, cost=?, retail_price=?, notes=?, guidelines=?, ' +
-    optionKeys.map((k) => k + '=?').join(', ') +
-    ", updated_at=datetime('now') WHERE id=?"
-  );
-  for (let i = 1; i < raw.length; i++) {
-    const row = raw[i];
-    const rowObj = {};
-    headers.forEach((h, j) => { if (h) rowObj[h] = row[j] != null ? row[j] : ''; });
-    const idVal = idIdx >= 0 && row[idIdx] != null && String(row[idIdx]).trim() !== '' ? parseInt(String(row[idIdx]).trim(), 10) : NaN;
-    const p = excelRowToDbRow(rowObj);
-    const optionVals = optionKeys.map((k) => p[k] || 0);
-    if (Number.isFinite(idVal) && idVal > 0) {
-      const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(idVal);
-      if (existing) {
-        updateStmt.run(
-          p.name, p.manufacturer, p.sku, p.description, p.dimensions, p.weight, p.color, p.department,
-          p.price, p.fb_marketplace_url, p.pick_url, p.image_urls, p.furniture_type, p.status,
-          p.quantity, p.cost, p.retail_price, p.notes, p.guidelines,
-          ...optionVals,
-          idVal
-        );
-        updated++;
-        continue;
-      }
-    }
-    insertStmt.run(
-      p.name, p.manufacturer, p.sku, p.description, p.dimensions, p.weight, p.color, p.department,
-      p.price, p.fb_marketplace_url, p.pick_url, p.image_urls, p.furniture_type, p.status || 'available',
-      p.quantity, p.cost, p.retail_price, p.notes, p.guidelines,
-      ...optionVals
-    );
-    inserted++;
-  }
-  return { updated, inserted };
+  return reconcileSheetProducts(db, res.data.values || []);
 }
 
 module.exports = { pushToSheet, pullFromSheet };

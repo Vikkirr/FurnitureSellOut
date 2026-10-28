@@ -15,6 +15,12 @@ const settings = require('./settings');
 const PORT = process.env.PORT || 3080;
 const app = express();
 
+// HTTPS deployments terminate TLS at a local reverse proxy. Only trust that
+// proxy so express-session can issue Secure cookies for forwarded HTTPS requests.
+if (process.env.HTTPS === 'true') {
+  app.set('trust proxy', 'loopback');
+}
+
 initDb();
 
 app.use(cors({

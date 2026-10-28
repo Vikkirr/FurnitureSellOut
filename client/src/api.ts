@@ -281,11 +281,11 @@ export async function adminSyncToSheet(): Promise<{ ok: boolean; rows?: number; 
   if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
   return data as { ok: boolean; rows?: number };
 }
-export async function adminSyncFromSheet(): Promise<{ ok: boolean; updated?: number; inserted?: number; error?: string }> {
+export async function adminSyncFromSheet(): Promise<{ ok: boolean; updated?: number; inserted?: number; deleted?: number; error?: string }> {
   const res = await adminFetch(`${API}/admin/sync-from-sheet`, { method: 'POST' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return { ok: false, error: (data as { error?: string }).error || 'Failed' };
-  return data as { ok: boolean; updated?: number; inserted?: number };
+  return data as { ok: boolean; updated?: number; inserted?: number; deleted?: number };
 }
 
 export async function adminGetSyncCapabilities(): Promise<{ fromProd: boolean; fromDev: boolean }> {

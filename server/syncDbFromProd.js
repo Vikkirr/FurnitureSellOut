@@ -6,6 +6,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { closeDb, getDb, dataDir } = require('./db');
+const { stripProductNotes } = require('./notesPreserve');
 
 function getKeyPath() {
   const p = process.env.SYNC_PROD_SSH_KEY_PATH;
@@ -29,7 +30,7 @@ function getProdDataPath() {
 
 /**
  * Pull catalog.db, catalog.db-wal, catalog.db-shm from Prod into local data/.
- * Closes DB, runs rsync, reopens DB.
+ * Closes DB, runs rsync, reopens DB. Notes are cleared so they stay spreadsheet-only.
  */
 function syncDbFromProd() {
   const keyPath = getKeyPath();
@@ -54,10 +55,15 @@ function syncDbFromProd() {
       maxBuffer: 10 * 1024 * 1024,
     });
   } finally {
-    getDb();
+    const db = getDb();
+    try {
+      stripProductNotes(db);
+    } catch (e) {
+      console.warn('sync/db-from-prod: could not clear Notes:', e.message);
+    }
   }
 
-  return { ok: true, message: 'DB synced from Prod. Restart the server if you see stale data.' };
+  return { ok: true, message: 'DB synced from Prod. Notes were not copied. Restart the server if you see stale data.' };
 }
 
 module.exports = { syncDbFromProd, getKeyPath, getProdHost, getProdUser, getProdDataPath };

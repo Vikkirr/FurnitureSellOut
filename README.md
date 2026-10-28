@@ -58,7 +58,31 @@ Furniture catalog website: browse products (no cart), filter by type/manufacture
 
 Default admin password is `changeme`; set `ADMIN_PASSWORD` in `.env` for production.
 
+Google Sheet pulls reconcile the local product list: matching IDs are updated,
+new rows are inserted, and local products absent from the sheet are deleted.
+The sheet must include `ID` and `Name` headers; every nonblank row needs a name,
+and populated IDs must be unique positive integers. Blank rows are ignored.
+Empty sheets are rejected rather than clearing the catalog. All database changes
+are applied in one transaction, and the result reports updates, inserts, and
+deletions. Keep stable IDs in the sheet; blank IDs receive new IDs locally, which
+are not automatically written back to Google Sheets. Image files are not deleted.
+Production changes only when you subsequently run **Sync DB to Prod**.
+
+Run the sheet reconciliation regression tests with
+`node --test server/tests/reconcileSheetProducts.test.js`.
+
 ## Troubleshooting: "Doesn't load" at http://\<VM-IP\>:3080
+
+If Admin login succeeds but Catalog shows "Failed to fetch products", check
+whether the service forces `HTTPS=true` while you are visiting an `http://`
+address. Secure session cookies cannot be issued over HTTP. For direct HTTP
+access, leave `HTTPS=false` in `.env` and remove `Environment=HTTPS=true` from
+the installed systemd unit (`sudo systemctl edit --full furniture-catalog`).
+Then run `sudo systemctl daemon-reload` and
+`sudo systemctl restart furniture-catalog`, and log in again.
+The service template no longer forces HTTPS. For an HTTPS deployment, set
+`HTTPS=true` in `.env` and use a local reverse proxy that sets
+`X-Forwarded-Proto: https`.
 
 1. **Check the server is running** (on the VM):
    ```bash

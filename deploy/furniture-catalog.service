@@ -7,7 +7,6 @@ Type=simple
 User=REPLACE_USER
 WorkingDirectory=REPLACE_WORKING_DIR
 Environment=NODE_ENV=production
-Environment=HTTPS=true
 ExecStart=/usr/bin/node server/index.js
 Restart=on-failure
 RestartSec=5

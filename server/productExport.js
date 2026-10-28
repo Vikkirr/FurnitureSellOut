@@ -37,7 +37,8 @@ function rowToExcelRow(row) {
     'Quantity': row.quantity != null ? row.quantity : 1,
     'SKU': row.sku ?? '',
     'Name': row.name ?? '',
-    'Notes': row.notes ?? '',
+    // Notes live only in the Google Sheet. Never copy DB notes back onto the sheet.
+    'Notes': '',
     'Brand': row.manufacturer ?? '',
     'Features': row.description ?? '',
     'Weight': row.weight ?? '',
@@ -96,7 +97,7 @@ function excelRowToDbRow(excelRow) {
     cost: num('Cost'),
     retail_price: num('Retail Price'),
     price: num('Price') != null ? num('Price') : 0,
-    notes: get('Notes'),
+    notes: null,
     guidelines: get('Guidelines'),
     image_urls: imagesStr,
     status: 'available',
@@ -104,9 +105,26 @@ function excelRowToDbRow(excelRow) {
   };
 }
 
+/** Read Notes from a sheet values grid, keyed by product ID. Used so push does not wipe sheet notes. */
+function sheetNotesByProductId(raw) {
+  const map = new Map();
+  if (!raw || raw.length < 2) return map;
+  const headers = raw[0].map((h) => (h != null ? String(h).trim() : ''));
+  const idIdx = headers.findIndex((h) => h === 'ID' || h === 'Id');
+  const notesIdx = headers.findIndex((h) => h === 'Notes' || h === 'notes');
+  if (idIdx < 0 || notesIdx < 0) return map;
+  for (const row of raw.slice(1)) {
+    const idText = String(row[idIdx] ?? '').trim();
+    if (!/^\d+$/.test(idText)) continue;
+    map.set(Number(idText), row[notesIdx] != null ? String(row[notesIdx]) : '');
+  }
+  return map;
+}
+
 module.exports = {
   OPTION_COLUMNS,
   EXCEL_COLUMNS,
   rowToExcelRow,
   excelRowToDbRow,
+  sheetNotesByProductId,
 };
